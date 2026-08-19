@@ -11,8 +11,10 @@ export const INITIAL_DEVICE_INFO: DeviceInfo = {
   tableId: 'TABLE-01',
   sensor: 'Load Cell + HX711 (24-bit ADC)',
   connection: 'Wi-Fi 802.11 b/g/n (2.4 GHz)',
-  status: 'Online',
-  lastDataReceived: '10:05:01',
+  // TODO: Remove this mock status. In production, derive status from latest Supabase timestamp.
+  // If last row timestamp < 60s ago → 'Online', else → 'Offline', no data → 'Not Connected'
+  status: 'Not Connected' as const,
+  lastDataReceived: '--:--:--',
   ipAddress: '192.168.1.142',
   wifiSsid: 'IoT_Lab_Network_5G',
   signalStrengthDbm: -56,

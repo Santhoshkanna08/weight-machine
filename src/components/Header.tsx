@@ -64,11 +64,10 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               id="btn-toggle-stream"
               onClick={onToggleLiveStream}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium border transition-colors ${
-                isLiveStreaming
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium border transition-colors ${isLiveStreaming
                   ? 'bg-emerald-950/80 border-emerald-600/50 text-emerald-300 hover:bg-emerald-900/60'
                   : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'
-              }`}
+                }`}
               title={isLiveStreaming ? 'Pause live simulation' : 'Start live sensor simulation'}
             >
               {isLiveStreaming ? (
@@ -108,22 +107,18 @@ export const Header: React.FC<HeaderProps> = ({
             {/* Divider */}
             <div className="hidden sm:block h-5 w-px bg-slate-800" />
 
-            {/* ESP32 Status Pill */}
+            {/* ESP32 Status Pill
+                 TODO (Supabase): once Supabase is connected, derive status from
+                 the latest weight_data row timestamp:
+                   - < 60s ago  →  🟢 ESP32 Online
+                   - > 60s ago  →  🔴 ESP32 Offline
+                   - no rows    →  ⚪ Device Not Connected  (current state)
+            */}
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-slate-950 border border-slate-800 text-xs">
               <span className="relative flex h-2.5 w-2.5">
-                {deviceInfo.status === 'Online' && (
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                )}
-                <span
-                  className={`relative inline-flex rounded-full h-2.5 w-2.5 ${
-                    deviceInfo.status === 'Online' ? 'bg-emerald-500' : 'bg-red-500'
-                  }`}
-                />
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-slate-500" />
               </span>
-              <span className="font-medium text-slate-200">ESP32 {deviceInfo.status}</span>
-              <span className="text-slate-500 text-[11px] font-mono">
-                {deviceInfo.lastDataReceived}
-              </span>
+              <span className="font-medium text-slate-400">Device Not Connected</span>
             </div>
           </div>
         </div>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Cpu, Wifi, Radio, Clock, Scale, Layers, Server } from 'lucide-react';
+import { Cpu, Wifi, Radio, Scale, Layers, Server } from 'lucide-react';
 import { DeviceInfo } from '../types/weight';
 
 interface DeviceInfoCardProps {
@@ -15,6 +15,16 @@ export const DeviceInfoCard: React.FC<DeviceInfoCardProps> = ({
 }) => {
   const factor = unit === 'lbs' ? 2.20462 : 1;
   const displayWeight = (currentWeight * factor).toFixed(1);
+
+  const isNotConnected = deviceInfo.status === 'Not Connected';
+  const isOnline = deviceInfo.status === 'Online';
+
+  // Status badge style
+  const statusColor = isOnline
+    ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 border-emerald-200 dark:border-emerald-800'
+    : isNotConnected
+      ? 'text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700'
+      : 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/60 border-red-200 dark:border-red-800';
 
   const fields = [
     {
@@ -44,7 +54,10 @@ export const DeviceInfoCard: React.FC<DeviceInfoCardProps> = ({
     {
       id: 'field-connection',
       label: 'Connection',
-      value: `${deviceInfo.connection} (${deviceInfo.signalStrengthDbm} dBm)`,
+      // Hide RSSI until real device is connected
+      value: isNotConnected
+        ? deviceInfo.connection
+        : `${deviceInfo.connection} (${deviceInfo.signalStrengthDbm} dBm)`,
       icon: Wifi,
       isMono: false,
       highlight: false,
@@ -56,23 +69,23 @@ export const DeviceInfoCard: React.FC<DeviceInfoCardProps> = ({
       icon: Server,
       isMono: false,
       highlight: true,
-      statusColor:
-        deviceInfo.status === 'Online'
-          ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 border-emerald-200 dark:border-emerald-800'
-          : 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/60 border-red-200 dark:border-red-800',
+      statusColor,
     },
     {
       id: 'field-last-received',
       label: 'Last Data Received',
-      value: deviceInfo.lastDataReceived,
-      icon: Clock,
+      // TODO (Supabase): replace with real timestamp from latest weight_data row
+      value: isNotConnected ? 'No data yet' : deviceInfo.lastDataReceived,
+      icon: Cpu,
       isMono: true,
       highlight: false,
+      dimmed: isNotConnected,
     },
     {
       id: 'field-current-weight',
       label: 'Current Weight',
       value: `${displayWeight} ${unit}`,
+      note: isNotConnected ? '(demo data)' : undefined,
       icon: Scale,
       isMono: true,
       highlight: true,
@@ -96,13 +109,19 @@ export const DeviceInfoCard: React.FC<DeviceInfoCardProps> = ({
               Device Information
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Node hardware specs & load amplifier configuration
+              Node hardware specs &amp; load amplifier configuration
             </p>
           </div>
         </div>
 
-        <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/80 font-medium">
-          Firmware v1.2.0
+        {/* Firmware badge — greyed out while not connected */}
+        <span
+          className={`text-[11px] font-mono px-2 py-0.5 rounded border font-medium ${isNotConnected
+              ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border-slate-300 dark:border-slate-700'
+              : 'bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/80'
+            }`}
+        >
+          {isNotConnected ? 'Firmware Unknown' : 'Firmware v1.2.0'}
         </span>
       </div>
 
@@ -121,18 +140,25 @@ export const DeviceInfoCard: React.FC<DeviceInfoCardProps> = ({
               </div>
 
               {item.highlight ? (
-                <span
-                  className={`text-xs px-2 py-0.5 rounded border ${
-                    item.statusColor || ''
-                  } ${item.isMono ? 'font-mono' : ''}`}
-                >
-                  {item.value}
-                </span>
+                <div className="flex items-center gap-1.5">
+                  {item.note && (
+                    <span className="text-[10px] text-slate-400 dark:text-slate-500 italic">
+                      {item.note}
+                    </span>
+                  )}
+                  <span
+                    className={`text-xs px-2 py-0.5 rounded border ${item.statusColor || ''} ${item.isMono ? 'font-mono' : ''
+                      }`}
+                  >
+                    {item.value}
+                  </span>
+                </div>
               ) : (
                 <span
-                  className={`text-xs font-medium text-slate-800 dark:text-slate-200 text-right ${
-                    item.isMono ? 'font-mono font-semibold' : ''
-                  }`}
+                  className={`text-xs font-medium text-right ${(item as { dimmed?: boolean }).dimmed
+                      ? 'text-slate-400 dark:text-slate-500 italic'
+                      : 'text-slate-800 dark:text-slate-200'
+                    } ${item.isMono ? 'font-mono font-semibold' : ''}`}
                 >
                   {item.value}
                 </span>

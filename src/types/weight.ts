@@ -27,7 +27,8 @@ export interface DeviceInfo {
   tableId: string;
   sensor: string;
   connection: string;
-  status: 'Online' | 'Offline' | 'Calibrating';
+  // 'Not Connected' = ESP32 not yet paired; 'Online'/'Offline' derived from Supabase timestamp in future
+  status: 'Online' | 'Offline' | 'Calibrating' | 'Not Connected';
   lastDataReceived: string;
   ipAddress: string;
   wifiSsid: string;
