@@ -264,23 +264,19 @@ export async function fetchChartData(
 /**
  * Derives a human-readable device status from the latest timestamp.
  *
- * Rules (implement after ESP32 is connected):
+ * CURRENT BEHAVIOUR: Always returns 'Not Connected'.
+ * The presence of database rows does NOT prove the physical ESP32 is running —
+ * those rows may have been inserted manually for testing.
+ *
+ * TODO: Once the ESP32 is live, replace this with timestamp-based logic:
  *   < 60 s ago  → 'Online'
  *   > 60 s ago  → 'Offline'
  *   no rows     → 'Not Connected'
- *
- * For now we always return 'Not Connected' even if there are database rows,
- * because those rows may have been inserted manually for testing purposes
- * and do not prove the physical ESP32 device is running.
- *
- * TODO: Uncomment and activate the status logic once the ESP32 is live.
  */
 function deriveDeviceStatus(
-  latestTimestamp: string | null
+  _latestTimestamp: string | null
 ): DeviceInfo['status'] {
-  if (latestTimestamp) {
-    return 'Data received';
-  }
+  // Always report Not Connected until real ESP32 timestamp logic is implemented.
   return 'Not Connected';
 }
 

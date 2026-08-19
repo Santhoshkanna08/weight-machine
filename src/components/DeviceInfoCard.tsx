@@ -16,18 +16,8 @@ export const DeviceInfoCard: React.FC<DeviceInfoCardProps> = ({
   const factor = unit === 'lbs' ? 2.20462 : 1;
   const displayWeight = (currentWeight * factor).toFixed(1);
 
-  const isNotConnected = deviceInfo.status === 'Not Connected';
-  const isOnline = deviceInfo.status === 'Online';
-  const isDataReceived = deviceInfo.status === 'Data received';
-
-  // Status badge style
-  const statusColor = isOnline
-    ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 border-emerald-200 dark:border-emerald-800'
-    : isDataReceived
-      ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 border-blue-200 dark:border-blue-800'
-      : isNotConnected
-        ? 'text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700'
-        : 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/60 border-red-200 dark:border-red-800';
+  // Always neutral — ESP32 is not connected yet
+  const statusColor = 'text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700';
 
   const fields = [
     {
@@ -68,7 +58,7 @@ export const DeviceInfoCard: React.FC<DeviceInfoCardProps> = ({
     {
       id: 'field-status',
       label: 'Status',
-      value: deviceInfo.status,
+      value: 'Waiting for ESP32',
       icon: Server,
       isMono: false,
       highlight: true,
@@ -77,18 +67,17 @@ export const DeviceInfoCard: React.FC<DeviceInfoCardProps> = ({
     {
       id: 'field-last-received',
       label: 'Last Data Received',
-      // TODO (Supabase): replace with real timestamp from latest weight_data row
-      value: isNotConnected ? 'No data yet' : deviceInfo.lastDataReceived,
+      value: 'No data yet',
       icon: Cpu,
       isMono: true,
       highlight: false,
-      dimmed: isNotConnected,
+      dimmed: true,
     },
     {
       id: 'field-current-weight',
       label: 'Current Weight',
       value: `${displayWeight} ${unit}`,
-      note: isNotConnected ? '(demo data)' : undefined,
+      note: '(db reading)',
       icon: Scale,
       isMono: true,
       highlight: true,
@@ -117,14 +106,9 @@ export const DeviceInfoCard: React.FC<DeviceInfoCardProps> = ({
           </div>
         </div>
 
-        {/* Firmware badge — greyed out while not connected */}
-        <span
-          className={`text-[11px] font-mono px-2 py-0.5 rounded border font-medium ${deviceInfo.status !== 'Online'
-              ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border-slate-300 dark:border-slate-700'
-              : 'bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/80'
-            }`}
-        >
-          {deviceInfo.status !== 'Online' ? 'Firmware Unknown' : 'Firmware v1.2.0'}
+        {/* Firmware badge — always greyed out until ESP32 is live */}
+        <span className="text-[11px] font-mono px-2 py-0.5 rounded border font-medium bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border-slate-300 dark:border-slate-700">
+          Firmware Unknown
         </span>
       </div>
 

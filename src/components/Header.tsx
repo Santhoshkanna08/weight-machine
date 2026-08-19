@@ -107,40 +107,14 @@ export const Header: React.FC<HeaderProps> = ({
             {/* Divider */}
             <div className="hidden sm:block h-5 w-px bg-slate-800" />
 
-            {/* ESP32 Status Pill or Data Received Indicator */}
+            {/* ESP32 Status Pill — always gray until real device connects */}
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-slate-950 border border-slate-800 text-xs">
               <span className="relative flex h-2.5 w-2.5">
-                {deviceInfo.status === 'Online' && (
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                )}
-                <span
-                  className={`relative inline-flex rounded-full h-2.5 w-2.5 ${deviceInfo.status === 'Online'
-                      ? 'bg-emerald-500'
-                      : deviceInfo.status === 'Data received'
-                        ? 'bg-blue-500'
-                        : deviceInfo.status === 'Not Connected'
-                          ? 'bg-slate-500'
-                          : 'bg-red-500'
-                    }`}
-                />
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-slate-500" />
               </span>
-              <span
-                className={`font-medium ${deviceInfo.status === 'Not Connected' ? 'text-slate-400' : 'text-slate-200'
-                  }`}
-              >
-                {deviceInfo.status === 'Online'
-                  ? 'ESP32 Online'
-                  : deviceInfo.status === 'Data received'
-                    ? 'Data received'
-                    : deviceInfo.status === 'Not Connected'
-                      ? 'Device Not Connected'
-                      : `ESP32 ${deviceInfo.status}`}
+              <span className="font-medium text-slate-400">
+                Waiting for ESP32
               </span>
-              {deviceInfo.status !== 'Not Connected' && (
-                <span className="text-slate-500 text-[11px] font-mono border-l border-slate-800 pl-2">
-                  {deviceInfo.lastDataReceived}
-                </span>
-              )}
             </div>
           </div>
         </div>
