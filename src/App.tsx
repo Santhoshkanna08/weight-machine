@@ -29,14 +29,14 @@ import {
 export default function App() {
   // State
   const [stats, setStats] = useState<WeightStats>({
-    currentWeight: 23.6,
-    previousWeight: 22.8,
-    weightDelta: 0.8,
-    maxWeight: 48.2,
-    minWeight: 5.4,
-    avgWeight: 21.7,
-    totalReadings: 45,
-    lastUpdated: '2026-08-19T10:05:01',
+    currentWeight: 0,
+    previousWeight: 0,
+    weightDelta: 0,
+    maxWeight: 0,
+    minWeight: 0,
+    avgWeight: 0,
+    totalReadings: 0,
+    lastUpdated: '--',
     unit: 'kg',
   });
 
