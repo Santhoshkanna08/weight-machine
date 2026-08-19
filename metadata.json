@@ -1,0 +1,6 @@
+{
+  "name": "ESP32 Smart Weight-Sensing Table",
+  "description": "Real-time IoT dashboard for ESP32 and HX711 load-cell smart weight monitoring table",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
