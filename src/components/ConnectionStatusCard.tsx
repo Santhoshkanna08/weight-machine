@@ -23,21 +23,32 @@ interface ConnectionStatusCardProps {
 export const ConnectionStatusCard: React.FC<ConnectionStatusCardProps> = ({ deviceInfo }) => {
   const isOnline = deviceInfo.status === 'Online';
   const isNotConnected = deviceInfo.status === 'Not Connected';
+  const isDataReceived = deviceInfo.status === 'Data received';
 
-  // Badge style: green = Online, red = Offline, slate = Not Connected
+  // Badge style: green = Online, red = Offline, slate = Not Connected, blue = Data received
   const badgeClass = isOnline
     ? 'bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800'
-    : isNotConnected
-      ? 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-300 dark:border-slate-700'
-      : 'bg-red-50 dark:bg-red-950/80 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800';
+    : isDataReceived
+      ? 'bg-blue-50 dark:bg-blue-950/80 text-blue-700 dark:text-blue-400 border-blue-200/50 dark:border-blue-800/50'
+      : isNotConnected
+        ? 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-300 dark:border-slate-700'
+        : 'bg-red-50 dark:bg-red-950/80 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800';
 
   const dotClass = isOnline
     ? 'bg-emerald-500'
-    : isNotConnected
-      ? 'bg-slate-400 dark:bg-slate-500'
-      : 'bg-red-500';
+    : isDataReceived
+      ? 'bg-blue-500'
+      : isNotConnected
+        ? 'bg-slate-400 dark:bg-slate-500'
+        : 'bg-red-500';
 
-  const statusLabel = isOnline ? 'Connected' : isNotConnected ? 'Not Connected' : 'Disconnected';
+  const statusLabel = isOnline
+    ? 'Connected'
+    : isDataReceived
+      ? 'Data received'
+      : isNotConnected
+        ? 'Not Connected'
+        : 'Disconnected';
 
   return (
     <div
@@ -117,10 +128,9 @@ export const ConnectionStatusCard: React.FC<ConnectionStatusCardProps> = ({ devi
       <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/80 text-[11px] text-slate-400 dark:text-slate-500 flex items-center justify-between">
         <span className="flex items-center gap-1">
           <Info className="w-3.5 h-3.5 text-slate-400" />
-          <span>Waiting for ESP32 connection</span>
+          <span>{isDataReceived ? 'Data received from database' : 'Waiting for ESP32 connection'}</span>
         </span>
-        {/* TODO (Supabase): show "Realtime Active" once Supabase is wired up */}
-        <span className="font-mono text-slate-500">Supabase Not Connected</span>
+        <span className="font-mono text-slate-500">Realtime Active</span>
       </div>
     </div>
   );

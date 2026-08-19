@@ -7,6 +7,7 @@ import { DeviceInfoCard } from './components/DeviceInfoCard';
 import { ConnectionStatusCard } from './components/ConnectionStatusCard';
 import { LiveSimulatorControls } from './components/LiveSimulatorControls';
 import { SupabaseGuideModal } from './components/SupabaseGuideModal';
+import { AlertTriangle } from 'lucide-react';
 
 import {
   WeightRecord,
@@ -76,6 +77,7 @@ export default function App() {
   const [isLiveStreaming, setIsLiveStreaming] = useState<boolean>(false);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
 
   const streamIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -83,6 +85,7 @@ export default function App() {
   const loadDashboardData = useCallback(async () => {
     try {
       setIsRefreshing(true);
+      setError(null);
       const [fetchedStats, fetchedDev, fetchedChart, fetchedHistory] = await Promise.all([
         fetchWeightStats('TABLE-01'),
         fetchDeviceInfo('TABLE-01'),
@@ -105,6 +108,31 @@ export default function App() {
       setTotalPages(fetchedHistory.totalPages);
     } catch (err) {
       console.error('Error fetching weight dashboard data:', err);
+      setError(err instanceof Error ? err.message : 'Database connection error.');
+
+      // Override status to indicate database error / offline
+      setDeviceInfo((prev) => ({
+        ...prev,
+        status: 'Not Connected',
+        lastDataReceived: '--:--:--',
+      }));
+
+      // Invalidate dashboard metrics to avoid silently showing stale/fake data
+      setStats({
+        currentWeight: 0,
+        previousWeight: 0,
+        weightDelta: 0,
+        maxWeight: 0,
+        minWeight: 0,
+        avgWeight: 0,
+        totalReadings: 0,
+        lastUpdated: '--',
+        unit: 'kg',
+      });
+      setChartData([]);
+      setHistoryRecords([]);
+      setTotalRecords(0);
+      setTotalPages(1);
     } finally {
       setIsRefreshing(false);
     }
@@ -122,6 +150,8 @@ export default function App() {
     try {
       const data = await fetchChartData('TABLE-01', range);
       setChartData(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load chart data.');
     } finally {
       setIsChartLoading(false);
     }
@@ -129,32 +159,14 @@ export default function App() {
 
   // Subscribe to realtime updates
   useEffect(() => {
-    const unsubscribe = subscribeToWeightUpdates(async () => {
-      const [newStats, newDev, newChart, newHistory] = await Promise.all([
-        fetchWeightStats('TABLE-01'),
-        fetchDeviceInfo('TABLE-01'),
-        fetchChartData('TABLE-01', timeRange),
-        fetchWeightHistory('TABLE-01', {
-          searchQuery,
-          sortOrder,
-          page: currentPage,
-          pageSize: 10,
-          startDate,
-          endDate,
-        }),
-      ]);
-      setStats(newStats);
-      setDeviceInfo(newDev);
-      setChartData(newChart);
-      setHistoryRecords(newHistory.records);
-      setTotalRecords(newHistory.total);
-      setTotalPages(newHistory.totalPages);
+    const unsubscribe = subscribeToWeightUpdates(() => {
+      loadDashboardData();
     });
 
     return () => {
       unsubscribe();
     };
-  }, [timeRange, searchQuery, sortOrder, currentPage, startDate, endDate]);
+  }, [loadDashboardData]);
 
   // Live simulation streamer
   useEffect(() => {
@@ -210,6 +222,23 @@ export default function App() {
 
       {/* Main Dashboard Content */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
+        {/* Error Notification Banner */}
+        {error && (
+          <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/60 rounded-xl p-4 flex items-start gap-3 text-red-800 dark:text-red-300">
+            <AlertTriangle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+            <div>
+              <h3 className="font-bold text-sm">Database Sync Error</h3>
+              <p className="text-xs text-red-700 dark:text-red-400 mt-1">{error}</p>
+              <button
+                onClick={loadDashboardData}
+                className="mt-2.5 px-3 py-1 bg-red-100 hover:bg-red-200 dark:bg-red-900/60 dark:hover:bg-red-900 text-xs font-semibold rounded transition-colors border border-red-200/50 dark:border-red-800/50"
+              >
+                Retry Request
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Simulation Controls Toolbar */}
         <LiveSimulatorControls
           currentWeight={stats.currentWeight}

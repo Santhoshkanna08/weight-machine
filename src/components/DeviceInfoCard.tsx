@@ -18,13 +18,16 @@ export const DeviceInfoCard: React.FC<DeviceInfoCardProps> = ({
 
   const isNotConnected = deviceInfo.status === 'Not Connected';
   const isOnline = deviceInfo.status === 'Online';
+  const isDataReceived = deviceInfo.status === 'Data received';
 
   // Status badge style
   const statusColor = isOnline
     ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 border-emerald-200 dark:border-emerald-800'
-    : isNotConnected
-      ? 'text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700'
-      : 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/60 border-red-200 dark:border-red-800';
+    : isDataReceived
+      ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 border-blue-200 dark:border-blue-800'
+      : isNotConnected
+        ? 'text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700'
+        : 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/60 border-red-200 dark:border-red-800';
 
   const fields = [
     {
@@ -54,10 +57,10 @@ export const DeviceInfoCard: React.FC<DeviceInfoCardProps> = ({
     {
       id: 'field-connection',
       label: 'Connection',
-      // Hide RSSI until real device is connected
-      value: isNotConnected
-        ? deviceInfo.connection
-        : `${deviceInfo.connection} (${deviceInfo.signalStrengthDbm} dBm)`,
+      // Hide RSSI until real device is online
+      value: deviceInfo.status === 'Online'
+        ? `${deviceInfo.connection} (${deviceInfo.signalStrengthDbm} dBm)`
+        : deviceInfo.connection,
       icon: Wifi,
       isMono: false,
       highlight: false,
@@ -116,12 +119,12 @@ export const DeviceInfoCard: React.FC<DeviceInfoCardProps> = ({
 
         {/* Firmware badge — greyed out while not connected */}
         <span
-          className={`text-[11px] font-mono px-2 py-0.5 rounded border font-medium ${isNotConnected
+          className={`text-[11px] font-mono px-2 py-0.5 rounded border font-medium ${deviceInfo.status !== 'Online'
               ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border-slate-300 dark:border-slate-700'
               : 'bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/80'
             }`}
         >
-          {isNotConnected ? 'Firmware Unknown' : 'Firmware v1.2.0'}
+          {deviceInfo.status !== 'Online' ? 'Firmware Unknown' : 'Firmware v1.2.0'}
         </span>
       </div>
 
@@ -156,8 +159,8 @@ export const DeviceInfoCard: React.FC<DeviceInfoCardProps> = ({
               ) : (
                 <span
                   className={`text-xs font-medium text-right ${(item as { dimmed?: boolean }).dimmed
-                      ? 'text-slate-400 dark:text-slate-500 italic'
-                      : 'text-slate-800 dark:text-slate-200'
+                    ? 'text-slate-400 dark:text-slate-500 italic'
+                    : 'text-slate-800 dark:text-slate-200'
                     } ${item.isMono ? 'font-mono font-semibold' : ''}`}
                 >
                   {item.value}
