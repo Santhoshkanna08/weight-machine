@@ -90,15 +90,17 @@ export async function fetchCurrentWeight(tableId = 'TABLE-01'): Promise<WeightRe
     .select('*')
     .eq('table_id', tableId)
     .order('timestamp', { ascending: false })
-    .limit(1)
-    .single();
+    .limit(1);
 
-  if (error || !data) {
-    console.warn('[weightService] fetchCurrentWeight:', error?.message ?? 'no data');
+  if (error) {
+    throw new Error(`Database error (fetchCurrentWeight): ${error.message} (${error.code})`);
+  }
+
+  if (!data || data.length === 0) {
     return { id: 0, table_id: tableId, weight: 0, timestamp: new Date().toISOString() };
   }
 
-  return toRecord(data as Record<string, unknown>);
+  return toRecord(data[0] as Record<string, unknown>);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -113,8 +115,11 @@ export async function fetchWeightStats(tableId = 'TABLE-01'): Promise<WeightStat
     .order('timestamp', { ascending: false })
     .limit(200);
 
-  if (error || !data) {
-    console.warn('[weightService] fetchWeightStats:', error?.message ?? 'no data');
+  if (error) {
+    throw new Error(`Database error (fetchWeightStats): ${error.message} (${error.code})`);
+  }
+
+  if (!data || data.length === 0) {
     return calculateStats([]);
   }
 
@@ -146,8 +151,11 @@ export async function fetchWeightHistory(
 
   const { data, error, count } = await query;
 
-  if (error || !data) {
-    console.warn('[weightService] fetchWeightHistory:', error?.message ?? 'no data');
+  if (error) {
+    throw new Error(`Database error (fetchWeightHistory): ${error.message} (${error.code})`);
+  }
+
+  if (!data) {
     return { records: [], total: 0, totalPages: 1 };
   }
 
@@ -194,8 +202,11 @@ export async function fetchChartData(
     .gte('timestamp', cutoff)
     .order('timestamp', { ascending: true });
 
-  if (error || !data) {
-    console.warn('[weightService] fetchChartData:', error?.message ?? 'no data');
+  if (error) {
+    throw new Error(`Database error (fetchChartData): ${error.message} (${error.code})`);
+  }
+
+  if (!data) {
     return [];
   }
 
@@ -249,32 +260,31 @@ export async function fetchChartData(
  * TODO: Uncomment and activate the status logic once the ESP32 is live.
  */
 function deriveDeviceStatus(
-  _latestTimestamp: string | null
+  latestTimestamp: string | null
 ): DeviceInfo['status'] {
-  // ─── Activate this block after ESP32 is connected ───────────────────────
-  // if (!_latestTimestamp) return 'Not Connected';
-  // const ageMs = Date.now() - new Date(_latestTimestamp).getTime();
-  // if (ageMs < 60_000) return 'Online';
-  // if (ageMs < 300_000) return 'Offline';
-  // return 'Not Connected';
-  // ────────────────────────────────────────────────────────────────────────
-  return 'Not Connected'; // current safe default
+  if (latestTimestamp) {
+    return 'Data received';
+  }
+  return 'Not Connected';
 }
 
 export async function fetchDeviceInfo(tableId = 'TABLE-01'): Promise<DeviceInfo> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('weight_data')
     .select('timestamp')
     .eq('table_id', tableId)
     .order('timestamp', { ascending: false })
-    .limit(1)
-    .single();
+    .limit(1);
 
-  const latestTimestamp = data ? (data.timestamp as string) : null;
+  if (error) {
+    throw new Error(`Database error (fetchDeviceInfo): ${error.message} (${error.code})`);
+  }
+
+  const latestTimestamp = data && data.length > 0 ? (data[0].timestamp as string) : null;
   const status = deriveDeviceStatus(latestTimestamp);
 
   const lastDataReceived =
-    latestTimestamp && status !== 'Not Connected'
+    latestTimestamp
       ? new Date(latestTimestamp).toLocaleTimeString('en-GB')
       : '--:--:--';
 
