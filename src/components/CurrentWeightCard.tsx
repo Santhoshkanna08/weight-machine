@@ -15,10 +15,11 @@ export const CurrentWeightCard: React.FC<CurrentWeightCardProps> = ({
 }) => {
   // Unit conversion factor
   const factor = unit === 'lbs' ? 2.20462 : 1;
-  const displayCurrent = (stats.currentWeight * factor).toFixed(1);
-  const displayAverage = (stats.avgWeight * factor).toFixed(1);
-  const displayDelta = (stats.weightDelta * factor).toFixed(1);
-  const displayPrev = (stats.previousWeight * factor).toFixed(1);
+  const isInitialLoading = stats.lastUpdated === '--';
+  const displayCurrent = isInitialLoading ? '--' : (stats.currentWeight * factor).toFixed(1);
+  const displayAverage = isInitialLoading ? '--' : (stats.avgWeight * factor).toFixed(1);
+  const displayDelta = isInitialLoading ? '--' : (stats.weightDelta * factor).toFixed(1);
+  const displayPrev = isInitialLoading ? '--' : (stats.previousWeight * factor).toFixed(1);
   const ratedCapacity = (ratedCapacityKg * factor).toFixed(0);
 
   // Load percentage for capacity bar
@@ -118,13 +119,12 @@ export const CurrentWeightCard: React.FC<CurrentWeightCardProps> = ({
           {/* Delta & Timestamp */}
           <div className="flex items-center gap-2.5">
             <div
-              className={`p-1.5 rounded-md ${
-                isPositive
+              className={`p-1.5 rounded-md ${isPositive
                   ? 'bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-900/50'
                   : isNegative
-                  ? 'bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900/50'
-                  : 'bg-slate-50 dark:bg-slate-800 text-slate-500 border border-slate-200 dark:border-slate-700'
-              }`}
+                    ? 'bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900/50'
+                    : 'bg-slate-50 dark:bg-slate-800 text-slate-500 border border-slate-200 dark:border-slate-700'
+                }`}
             >
               {isPositive ? (
                 <TrendingUp className="w-4 h-4" />
@@ -141,13 +141,12 @@ export const CurrentWeightCard: React.FC<CurrentWeightCardProps> = ({
                   Change (from {displayPrev} {unit}):
                 </span>
                 <span
-                  className={`text-xs font-mono font-semibold ${
-                    isPositive
+                  className={`text-xs font-mono font-semibold ${isPositive
                       ? 'text-amber-600 dark:text-amber-400'
                       : isNegative
-                      ? 'text-blue-600 dark:text-blue-400'
-                      : 'text-slate-500'
-                  }`}
+                        ? 'text-blue-600 dark:text-blue-400'
+                        : 'text-slate-500'
+                    }`}
                 >
                   {isPositive ? `+${displayDelta}` : displayDelta} {unit}
                 </span>
@@ -171,13 +170,12 @@ export const CurrentWeightCard: React.FC<CurrentWeightCardProps> = ({
             </div>
             <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden">
               <div
-                className={`h-full rounded-full transition-all duration-500 ${
-                  loadPercentage > 85
+                className={`h-full rounded-full transition-all duration-500 ${loadPercentage > 85
                     ? 'bg-red-500'
                     : loadPercentage > 60
-                    ? 'bg-amber-500'
-                    : 'bg-emerald-500'
-                }`}
+                      ? 'bg-amber-500'
+                      : 'bg-emerald-500'
+                  }`}
                 style={{ width: `${loadPercentage}%` }}
               />
             </div>
