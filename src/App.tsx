@@ -42,10 +42,12 @@ export default function App() {
   const [deviceInfo, setDeviceInfo] = useState<DeviceInfo>({
     deviceId: 'ESP32-TABLE-01',
     tableId: 'TABLE-01',
-    sensor: 'Load Cell + HX711',
-    connection: 'Wi-Fi',
-    status: 'Online',
-    lastDataReceived: '10:05:01',
+    sensor: 'Load Cell + HX711 (24-bit ADC)',
+    connection: 'Wi-Fi 802.11 b/g/n (2.4 GHz)',
+    // 'Not Connected' is the safe default until ESP32 is live.
+    // fetchDeviceInfo() will update this after each data load.
+    status: 'Not Connected',
+    lastDataReceived: '--:--:--',
     ipAddress: '192.168.1.142',
     wifiSsid: 'IoT_Lab_Network_5G',
     signalStrengthDbm: -56,
@@ -292,7 +294,7 @@ export default function App() {
               onClick={() => setIsSupabaseModalOpen(true)}
               className="text-emerald-600 dark:text-emerald-400 hover:underline font-medium"
             >
-              Supabase Ready ↗
+              Supabase Connected ↗
             </button>
           </div>
         </div>
