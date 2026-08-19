@@ -19,7 +19,7 @@
  * └──────────────────────────────────────────────┘
  */
 
-import { supabase } from '../lib/supabase';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import {
   WeightRecord,
   WeightStats,
@@ -85,6 +85,10 @@ export function calculateStats(records: WeightRecord[]): WeightStats {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function fetchCurrentWeight(tableId = 'TABLE-01'): Promise<WeightRecord> {
+  if (!isSupabaseConfigured) {
+    throw new Error('Supabase URL and Publishable Key are missing from your deployment environment settings.');
+  }
+
   const { data, error } = await supabase
     .from('weight_data')
     .select('*')
@@ -108,6 +112,10 @@ export async function fetchCurrentWeight(tableId = 'TABLE-01'): Promise<WeightRe
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function fetchWeightStats(tableId = 'TABLE-01'): Promise<WeightStats> {
+  if (!isSupabaseConfigured) {
+    throw new Error('Supabase URL and Publishable Key are missing from your deployment environment settings.');
+  }
+
   const { data, error } = await supabase
     .from('weight_data')
     .select('*')
@@ -134,6 +142,10 @@ export async function fetchWeightHistory(
   tableId = 'TABLE-01',
   options: TableFilterOptions = { searchQuery: '', sortOrder: 'desc', page: 1, pageSize: 10 }
 ): Promise<{ records: WeightRecord[]; total: number; totalPages: number }> {
+  if (!isSupabaseConfigured) {
+    throw new Error('Supabase URL and Publishable Key are missing from your deployment environment settings.');
+  }
+
   const ascending = options.sortOrder === 'asc';
   const from = (options.page - 1) * options.pageSize;
   const to = from + options.pageSize - 1;
@@ -186,6 +198,10 @@ export async function fetchChartData(
   tableId = 'TABLE-01',
   range: TimeRangeFilter = '1h'
 ): Promise<ChartDataPoint[]> {
+  if (!isSupabaseConfigured) {
+    throw new Error('Supabase URL and Publishable Key are missing from your deployment environment settings.');
+  }
+
   const msMap: Record<TimeRangeFilter, number> = {
     '1h': 1 * 3600_000,
     '6h': 6 * 3600_000,
@@ -269,6 +285,10 @@ function deriveDeviceStatus(
 }
 
 export async function fetchDeviceInfo(tableId = 'TABLE-01'): Promise<DeviceInfo> {
+  if (!isSupabaseConfigured) {
+    throw new Error('Supabase URL and Publishable Key are missing from your deployment environment settings.');
+  }
+
   const { data, error } = await supabase
     .from('weight_data')
     .select('timestamp')
@@ -330,6 +350,10 @@ function ensureRealtimeChannel() {
  * Returns an unsubscribe function — call it on component unmount.
  */
 export function subscribeToWeightUpdates(callback: WeightCallback): () => void {
+  if (!isSupabaseConfigured) {
+    return () => { };
+  }
+
   subscribers.add(callback);
   ensureRealtimeChannel();
 
@@ -351,6 +375,10 @@ export async function pushSimulatedReading(
   weight: number,
   tableId = 'TABLE-01'
 ): Promise<WeightRecord> {
+  if (!isSupabaseConfigured) {
+    throw new Error('Supabase URL and Publishable Key are missing from your deployment environment settings.');
+  }
+
   const { data, error } = await supabase
     .from('weight_data')
     .insert({ table_id: tableId, weight: +Math.max(0, weight).toFixed(1) })
