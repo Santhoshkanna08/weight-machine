@@ -6,51 +6,38 @@ import {
   ChartDataPoint,
   TableFilterOptions,
 } from '../types/weight';
-import { INITIAL_MOCK_RECORDS, INITIAL_DEVICE_INFO } from '../data/mockData';
+import { supabase } from './supabaseClient';
+import { INITIAL_DEVICE_INFO } from '../data/mockData';
 
 /**
  * ==============================================================================
- * ESP32 Smart Weight Table - Data & Service Layer
+ * ESP32 Smart Weight Table — Supabase Live Data Service
  * ==============================================================================
- * This service layer acts as the single source of truth for weight sensor data.
- * Currently, it serves high-fidelity simulated/mock ESP32 load-cell readings.
- *
- * ------------------------------------------------------------------------------
- * FUTURE SUPABASE INTEGRATION GUIDE:
- * ------------------------------------------------------------------------------
- * To connect Supabase:
- * 1. Install @supabase/supabase-js: `npm install @supabase/supabase-js`
- * 2. Create a Supabase client instance (e.g., in `src/services/supabaseClient.ts`):
- *      import { createClient } from '@supabase/supabase-js';
- *      export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
- * 3. Replace the mock functions in this file with Supabase queries:
- *      - fetchCurrentWeight:
- *          const { data } = await supabase
- *            .from('weight_data')
- *            .select('*')
- *            .order('timestamp', { ascending: false })
- *            .limit(1)
- *            .single();
- *          return data;
- *
- *      - subscribeToWeightUpdates:
- *          const channel = supabase
- *            .channel('realtime:weight_data')
- *            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'weight_data' },
- *                payload => callback(payload.new as WeightRecord))
- *            .subscribe();
- *          return () => { supabase.removeChannel(channel); };
+ * All functions now query the `weight_data` table in Supabase.
+ * Real-time updates are delivered via Supabase Realtime (Postgres changes).
  * ==============================================================================
  */
 
-// In-memory state for mock lifecycle (simulating local cache or live buffer)
-let memoryRecords: WeightRecord[] = [...INITIAL_MOCK_RECORDS];
-let memoryDeviceInfo: DeviceInfo = { ...INITIAL_DEVICE_INFO };
+// ---------------------------------------------------------------------------
+// Subscribers for real-time weight updates
+// ---------------------------------------------------------------------------
 const subscribers: Set<(record: WeightRecord) => void> = new Set();
 
-/**
- * Helper to compute stats from a list of records
- */
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/** Map a raw Supabase row to the WeightRecord shape */
+function rowToRecord(row: Record<string, unknown>): WeightRecord {
+  return {
+    id: row.id as number,
+    table_id: row.table_id as string,
+    weight: parseFloat(row.weight as string),
+    timestamp: row.timestamp as string,
+  };
+}
+
+/** Compute stats from an array of WeightRecord */
 export function calculateStats(records: WeightRecord[]): WeightStats {
   if (!records || records.length === 0) {
     return {
@@ -89,40 +76,81 @@ export function calculateStats(records: WeightRecord[]): WeightStats {
   };
 }
 
-/**
- * Fetch the latest weight reading
- */
+// ---------------------------------------------------------------------------
+// Fetch latest single reading
+// ---------------------------------------------------------------------------
 export async function fetchCurrentWeight(tableId = 'TABLE-01'): Promise<WeightRecord> {
-  // Simulate minimal async delay (50ms)
-  await new Promise((resolve) => setTimeout(resolve, 50));
-  const filtered = memoryRecords.filter((r) => r.table_id === tableId);
-  return filtered[0] || memoryRecords[0];
+  const { data, error } = await supabase
+    .from('weight_data')
+    .select('*')
+    .eq('table_id', tableId)
+    .order('timestamp', { ascending: false })
+    .limit(1)
+    .single();
+
+  if (error || !data) {
+    console.warn('[weightService] fetchCurrentWeight error:', error?.message);
+    return { id: 0, table_id: tableId, weight: 0, timestamp: new Date().toISOString() };
+  }
+
+  return rowToRecord(data);
 }
 
-/**
- * Fetch computed statistics for the weight dashboard
- */
+// ---------------------------------------------------------------------------
+// Fetch dashboard statistics
+// ---------------------------------------------------------------------------
 export async function fetchWeightStats(tableId = 'TABLE-01'): Promise<WeightStats> {
-  await new Promise((resolve) => setTimeout(resolve, 50));
-  const filtered = memoryRecords.filter((r) => r.table_id === tableId);
-  return calculateStats(filtered);
+  const { data, error } = await supabase
+    .from('weight_data')
+    .select('*')
+    .eq('table_id', tableId)
+    .order('timestamp', { ascending: false })
+    .limit(200);
+
+  if (error || !data) {
+    console.warn('[weightService] fetchWeightStats error:', error?.message);
+    return calculateStats([]);
+  }
+
+  return calculateStats(data.map(rowToRecord));
 }
 
-/**
- * Fetch paginated & filtered weight history
- */
+// ---------------------------------------------------------------------------
+// Fetch paginated + filtered weight history
+// ---------------------------------------------------------------------------
 export async function fetchWeightHistory(
   tableId = 'TABLE-01',
   options: TableFilterOptions = { searchQuery: '', sortOrder: 'desc', page: 1, pageSize: 10 }
 ): Promise<{ records: WeightRecord[]; total: number; totalPages: number }> {
-  await new Promise((resolve) => setTimeout(resolve, 60));
+  const ascending = options.sortOrder === 'asc';
 
-  let results = memoryRecords.filter((r) => r.table_id === tableId);
+  let query = supabase
+    .from('weight_data')
+    .select('*', { count: 'exact' })
+    .eq('table_id', tableId)
+    .order('timestamp', { ascending });
 
-  // Search filter (e.g. searching for weight or date)
+  if (options.startDate) query = query.gte('timestamp', options.startDate);
+  if (options.endDate) query = query.lte('timestamp', options.endDate);
+
+  // Pagination
+  const from = (options.page - 1) * options.pageSize;
+  const to = from + options.pageSize - 1;
+  query = query.range(from, to);
+
+  const { data, error, count } = await query;
+
+  if (error || !data) {
+    console.warn('[weightService] fetchWeightHistory error:', error?.message);
+    return { records: [], total: 0, totalPages: 1 };
+  }
+
+  let records = data.map(rowToRecord);
+
+  // Client-side text search (weight / timestamp text match)
   if (options.searchQuery.trim()) {
     const q = options.searchQuery.toLowerCase();
-    results = results.filter(
+    records = records.filter(
       (r) =>
         r.table_id.toLowerCase().includes(q) ||
         r.weight.toString().includes(q) ||
@@ -130,73 +158,48 @@ export async function fetchWeightHistory(
     );
   }
 
-  // Date range filters
-  if (options.startDate) {
-    results = results.filter((r) => r.timestamp >= options.startDate!);
-  }
-  if (options.endDate) {
-    results = results.filter((r) => r.timestamp <= options.endDate!);
-  }
-
-  // Sort
-  results.sort((a, b) => {
-    const timeA = new Date(a.timestamp).getTime();
-    const timeB = new Date(b.timestamp).getTime();
-    return options.sortOrder === 'asc' ? timeA - timeB : timeB - timeA;
-  });
-
-  const total = results.length;
+  const total = count ?? records.length;
   const totalPages = Math.max(1, Math.ceil(total / options.pageSize));
-  const startIndex = (options.page - 1) * options.pageSize;
-  const paginated = results.slice(startIndex, startIndex + options.pageSize);
 
-  return {
-    records: paginated,
-    total,
-    totalPages,
-  };
+  return { records, total, totalPages };
 }
 
-/**
- * Fetch chart time-series data based on time range filter
- */
+// ---------------------------------------------------------------------------
+// Fetch chart time-series data
+// ---------------------------------------------------------------------------
 export async function fetchChartData(
   tableId = 'TABLE-01',
   range: TimeRangeFilter = '1h'
 ): Promise<ChartDataPoint[]> {
-  await new Promise((resolve) => setTimeout(resolve, 50));
+  const durationMap: Record<TimeRangeFilter, number> = {
+    '1h': 1 * 3600 * 1000,
+    '6h': 6 * 3600 * 1000,
+    '24h': 24 * 3600 * 1000,
+    '7d': 7 * 24 * 3600 * 1000,
+  };
 
-  const now = new Date('2026-08-19T10:05:01');
-  let durationMs = 3600 * 1000; // 1 hour default
+  const cutoff = new Date(Date.now() - durationMap[range]).toISOString();
 
-  if (range === '6h') durationMs = 6 * 3600 * 1000;
-  if (range === '24h') durationMs = 24 * 3600 * 1000;
-  if (range === '7d') durationMs = 7 * 24 * 3600 * 1000;
+  const { data, error } = await supabase
+    .from('weight_data')
+    .select('*')
+    .eq('table_id', tableId)
+    .gte('timestamp', cutoff)
+    .order('timestamp', { ascending: true });
 
-  const cutoffTime = now.getTime() - durationMs;
+  if (error || !data) {
+    console.warn('[weightService] fetchChartData error:', error?.message);
+    return [];
+  }
 
-  const filtered = memoryRecords
-    .filter((r) => r.table_id === tableId && new Date(r.timestamp).getTime() >= cutoffTime)
-    .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-
-  // Format chart time labels nicely
-  return filtered.map((record) => {
+  return data.map(rowToRecord).map((record) => {
     const d = new Date(record.timestamp);
     let timeLabel = '';
 
     if (range === '1h' || range === '6h') {
-      timeLabel = d.toLocaleTimeString('en-US', {
-        hour12: false,
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-      });
+      timeLabel = d.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
     } else if (range === '24h') {
-      timeLabel = d.toLocaleTimeString('en-US', {
-        hour12: false,
-        hour: '2-digit',
-        minute: '2-digit',
-      });
+      timeLabel = d.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
     } else {
       timeLabel = `${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} ${d.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })}`;
     }
@@ -210,71 +213,84 @@ export async function fetchChartData(
   });
 }
 
-/**
- * Fetch ESP32 hardware and connection status info
- */
+// ---------------------------------------------------------------------------
+// Device info (static + enriched from latest reading)
+// ---------------------------------------------------------------------------
 export async function fetchDeviceInfo(tableId = 'TABLE-01'): Promise<DeviceInfo> {
-  await new Promise((resolve) => setTimeout(resolve, 40));
-  const latest = memoryRecords[0];
-  const lastTime = latest ? latest.timestamp.split('T')[1] || '10:05:01' : '10:05:01';
+  const { data } = await supabase
+    .from('weight_data')
+    .select('timestamp')
+    .eq('table_id', tableId)
+    .order('timestamp', { ascending: false })
+    .limit(1)
+    .single();
+
+  const lastTime = data
+    ? new Date(data.timestamp as string).toLocaleTimeString('en-GB')
+    : '--:--:--';
 
   return {
-    ...memoryDeviceInfo,
+    ...INITIAL_DEVICE_INFO,
     tableId,
     lastDataReceived: lastTime,
   };
 }
 
-/**
- * Subscribe to real-time weight updates.
- * In production with Supabase, this will attach to Supabase Realtime channel.
- */
+// ---------------------------------------------------------------------------
+// Real-time subscription via Supabase Realtime
+// ---------------------------------------------------------------------------
+let realtimeChannel: ReturnType<typeof supabase.channel> | null = null;
+
 export function subscribeToWeightUpdates(callback: (record: WeightRecord) => void): () => void {
   subscribers.add(callback);
+
+  // Only create the channel once
+  if (!realtimeChannel) {
+    realtimeChannel = supabase
+      .channel('realtime:weight_data')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'weight_data' },
+        (payload) => {
+          const record = rowToRecord(payload.new as Record<string, unknown>);
+          subscribers.forEach((cb) => cb(record));
+        }
+      )
+      .subscribe((status) => {
+        console.log('[Supabase Realtime] status:', status);
+      });
+  }
+
   return () => {
     subscribers.delete(callback);
+    if (subscribers.size === 0 && realtimeChannel) {
+      supabase.removeChannel(realtimeChannel);
+      realtimeChannel = null;
+    }
   };
 }
 
-/**
- * Add a new simulated reading (used by the live test simulator)
- */
-export function pushSimulatedReading(weight: number, tableId = 'TABLE-01'): WeightRecord {
-  const newId = (memoryRecords[0]?.id || 0) + 1;
-  const now = new Date();
-  // Keep timestamp format in sync
-  const isoTime = now.toISOString().replace('Z', '').split('.')[0];
-  const timeFormatted = now.toLocaleTimeString('en-GB');
+// ---------------------------------------------------------------------------
+// Push a simulated reading directly to Supabase (used by test simulator)
+// ---------------------------------------------------------------------------
+export async function pushSimulatedReading(weight: number, tableId = 'TABLE-01'): Promise<WeightRecord> {
+  const { data, error } = await supabase
+    .from('weight_data')
+    .insert({ table_id: tableId, weight: Number(Math.max(0, weight).toFixed(1)) })
+    .select()
+    .single();
 
-  const newRecord: WeightRecord = {
-    id: newId,
-    table_id: tableId,
-    weight: Number(Math.max(0, weight).toFixed(1)),
-    timestamp: isoTime,
-  };
+  if (error || !data) {
+    console.error('[weightService] pushSimulatedReading error:', error?.message);
+    return { id: 0, table_id: tableId, weight, timestamp: new Date().toISOString() };
+  }
 
-  // Prepend to memory records
-  memoryRecords = [newRecord, ...memoryRecords];
-
-  // Update memory device info last time
-  memoryDeviceInfo = {
-    ...memoryDeviceInfo,
-    lastDataReceived: timeFormatted,
-    status: 'Online',
-  };
-
-  // Notify active listeners
-  subscribers.forEach((cb) => cb(newRecord));
-
-  return newRecord;
+  return rowToRecord(data);
 }
 
-/**
- * Reset memory to initial mock state
- */
+// ---------------------------------------------------------------------------
+// Reset — clears mock; in Supabase mode this is a no-op (data lives in DB)
+// ---------------------------------------------------------------------------
 export function resetMockData() {
-  memoryRecords = [...INITIAL_MOCK_RECORDS];
-  memoryDeviceInfo = { ...INITIAL_DEVICE_INFO };
-  const latest = memoryRecords[0];
-  subscribers.forEach((cb) => cb(latest));
+  console.info('[weightService] resetMockData is a no-op in Supabase mode.');
 }
